@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Transcript</title>
+</head>
+<body>
+
+    <h2>Upload Transcript or Select Program</h2>
+    
+    <form action="/programselect" method="POST">
+        <label for="programSelect">Select Program:</label>
+        <select id="programSelect" name="program">
+            <option value="">Loading programs...</option>
+        </select>
+        <button type="submit">Select Program</button>
+    </form>
+
+    <script> //this fills the drop down with only existing majors in the database
+    fetch('/api/programs')
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('programSelect');
+
+            // Clear existing options
+            select.innerHTML = '';
+
+            data.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.Program;
+                option.textContent = item.Program;
+                select.appendChild(option);
+            });
+        })
+        .catch(err => {
+            console.error(err);
+        });
+
+        fetch('/api/is-advisor') //only shows advisor panel if user is an advisor
+            .then(res => res.json())
+            .then(data => {
+                if (data.isAdvisor) {
+                    const advisorButton = document.createElement('button');
+                    advisorButton.textContent = 'Advisor Panel';
+                    advisorButton.onclick = () => {
+                       window.location.href = '/advisorpanel';
+                    };
+                    advisorButton.type = 'button'; // prevent form submission
+
+                    // show the button before the rest of the page
+                    document.body.insertBefore(advisorButton, document.body.firstChild);
+                }
+            })
+            .catch(err => console.error(err));
+    </script>
+
+
+    <p> OR </p>
+
+    
+    <form action="/uploadtranscript" method="post" enctype="multipart/form-data">
+        <label for="file-upload">Select file:</label>
+        <input type="file" id="file-upload" name="file" accept=".txt" />
+        <button type="submit">Upload Transcript</button>
+    </form>
+
+    
+    <form action="/logout" method="GET">
+        <button type="submit">Logout</button>
+    </form>
+
+</body>
+</html>

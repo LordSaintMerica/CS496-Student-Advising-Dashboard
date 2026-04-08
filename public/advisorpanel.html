@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advisor Panel</title>
+</head>
+<body>
+
+    <h2>ADVISOR PANEL PAGE</h2>
+    <p id="user"></p>
+    <p>yippee!! you're in the advisor panel.</p>
+
+    <form action="/deleteuser" method="POST">
+        <label for="username">Username:</label>
+        <input type="text" name="username" id="username" required><br>
+
+        <button type="submit" name="action" value="deleteuser">Delete User</button>
+        
+    </form>
+
+    <form action="/addadvisor" method="POST">
+        <label for="username">Username:</label>
+        <input type="text" name="username" id="username" required><br>
+
+        <label for="password">Password:</label>
+        <input type="password" name="password" id="password" required><br>
+
+        <button type="submit" name="action" value="addadvisor">Add Advisor</button>
+        
+    </form>
+
+    <script>
+        fetch('/api/currentuser')
+            .then(res => res.json())
+            .then(data => {
+                const display = document.getElementById('user');
+                display.textContent = data.user || 'No user, somehow';
+            })
+            .catch(err => console.error(err));
+    </script>
+
+</body>
+</html>
