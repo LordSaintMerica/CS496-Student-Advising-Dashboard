@@ -211,9 +211,9 @@ app.post("/uploadtranscript", upload.single("file"), async (req, res) => {
             return res.status(400).send("No file uploaded");
         }
         
-        if (req.file.mimetype !== "text/plain") {//wrong type check
+        if (req.file.mimetype !== "application/pdf") {//wrong type check
             //change this to PDF after fixing it
-            return res.status(400).send("Only .txt files are allowed");
+            return res.status(400).send("Only .pdf files are allowed");
         }
 
         const fileContent = req.file.buffer.toString("utf-8");//convert file to string
