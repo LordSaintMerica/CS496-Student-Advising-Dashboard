@@ -1,35 +1,29 @@
-//WKU REQUIREMENTS PAGE PARSER
-//WRITTEN BY FREDDY GOODWIN ASSISTED BY CHATGPT
-
-//NOT CONNECTED TO THE MAIN SERVER FILE, RUNS ISOLATED IN CMD FOR TESTING PURPOSES
-
 const fs = require("fs");
-const cheerio = require("cheerio");//library for parsing html, primarily what chatGPT was used for
+const cheerio = require("cheerio");
 
-//the args given in the command line correspond to the input and output
+// command line args
 const inputFile = process.argv[2];
 const outputFile = process.argv[3] || "output.txt";
 
-if (!inputFile) {//user didnt put any args
-    console.error("Usage: node parser.js <input.html> [output.txt]");
+if (!inputFile) {
+    console.error("Usage: node requirementshtmlparser.js <input.html> [output.txt]");
     process.exit(1);
 }
 
-//this depends on the user having the html file local on their machine already
-//the html files will come from the scraper, but i havent made that yet so i just downloaded one html file for testing
+// read HTML file
 const html = fs.readFileSync(inputFile, "utf-8");
 
-//load cheerio
-//this lets me use $ to access html tags like objects rather than making a big regex parser for the raw html
+// load into cheerio
 const $ = cheerio.load(html);
 
+$('[aria-hidden="true"]').remove(); //the cs major had hidden h3 tags that made the parser not work
+//this removes the hidden sections
+
+// get major title
 let major = $("h1.page-title").first().text().trim();
 if (major.includes(",")) {
-    major = major.split(",")[0].trim(); // keep only text before comma
+    major = major.split(",")[0].trim();
 }
-
-//all the course requirements are in tables labelled sc_courselist
-const tables = $("table.sc_courselist");
 
 let output = "";
 
@@ -37,48 +31,61 @@ if (major) {
     output += `Major: ${major}\n\n`;
 }
 
-tables.each((i, table) => {
-    output += `Table ${i + 1}\n`;//labelled headers in the output
+// track how many h3 tags we've seen
+let h3Count = 0;
+let tableIndex = 0;
 
-    $(table).find("tr").each((j, row) => {//finds each row in the table, then every cell in the row
-        const cells = $(row).find("th, td");
+// walk the DOM in order
+$("body").find("*").each((i, el) => {
+    const tag = el.tagName;
 
-        const rowData = [];
+    // count h3 tags
+    if (tag === "h3") {
+        console.log(`h3 found.`);
+        h3Count++;
+        if (h3Count >= 2) {
+            return false; // stop processing entirely
+        }
+    }
 
-        //saves all of the text of each cell in a row one by one
-        cells.each((k, cell) => {
-            let text = $(cell).text().trim();
-            text = text.replace(/\s+/g, " ");//it also trims off all the blank space
-            rowData.push(text);//print to output
-        });
+    // process only relevant tables before second h3
+    if (tag === "table" && $(el).hasClass("sc_courselist")) {
+        tableIndex++;
+        output += `Table ${tableIndex}\n`;
 
-        //saves all of the href links in the row
-        //i'll need to make another html parser later that fetches each course's prerequisites
-        //that parser will need these links to get that data
-        const links = [];
-        $(row).find("a").each((k, link) => {
-            const href = $(link).attr("href");
-            if (href) {
-                links.push(href.trim());//save links to links table
+        $(el).find("tr").each((j, row) => {
+            const cells = $(row).find("th, td");
+            const rowData = [];
+
+            // extract cell text
+            cells.each((k, cell) => {
+                let text = $(cell).text().trim();
+                text = text.replace(/\s+/g, " ");
+                rowData.push(text);
+            });
+
+            // extract links
+            const links = [];
+            $(row).find("a").each((k, link) => {
+                const href = $(link).attr("href");
+                if (href) {
+                    links.push(href.trim());
+                }
+            });
+
+            // append links column
+            rowData.push(links.length > 0 ? links.join(", ") : "");
+
+            if (rowData.length > 0) {
+                output += rowData.join("\t") + "\n";
             }
         });
 
-        //if there are links, print them to the output
-        if (links.length > 0) {
-            rowData.push(links.join(", "));
-        } else {
-            rowData.push(""); 
-        }
-
-        if (rowData.length > 0) {
-            output += rowData.join("\t") + "\n";//puts a tab space between each item for legibility
-        }
-    });
-
-    output += "\n";//new line for legibility
+        output += "\n";
+    }
 });
 
-//write to output
+// write output
 fs.writeFileSync(outputFile, output, "utf-8");
 
-console.log(`Extracted ${tables.length} table(s) to ${outputFile}`);
+console.log(`Extracted ${tableIndex} table(s) to ${outputFile}`);
