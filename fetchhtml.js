@@ -1,26 +1,25 @@
-//Isolated Version of the basic HTML Scraper file for Unit Testing
+//HTML SCRAPER FILE
 //Freddy Goodwin
 
-const url = process.argv[2];
+const fs = require("fs");
 
-if (!url) {
-  console.error("Proper Usage: node fetch-html.js https://example.com");
-  process.exit(1);
-}
-
-async function fetchHTML(targetUrl) {
-  try {
-    const response = await fetch(targetUrl);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
+async function fetchHTML(url) {
+    if (!url) {
+        throw new Error("No URL");
     }
 
-    const html = await response.text();
-    console.log(html);
-  } catch (error) {
-    console.error("Failed to fetch page:", error.message);
-  }
+    const response = await fetch(url);//grabs the html data
+
+    if (!response.ok) {//error on bot protected sites (WKU's work)
+        throw new Error(`HTTP error: ${response.status}`);
+    }
+
+    const html = await response.text(); // extract HTML string
+    fs.writeFileSync("scrapeoutput.txt", html, "utf8");//print to file
+    console.log("HTML saved to scrapeoutput.txt");
+
+    return;
 }
 
-fetchHTML(url);
+//allow it to be called elsewhere
+module.exports = { fetchHTML };
