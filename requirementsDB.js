@@ -4,13 +4,12 @@
 
 const fs = require("fs");
 const readline = require("readline");
-
-const filePath = process.argv[2];
-
 const sqlite3 = require("sqlite3").verbose();
 
-function writeToSQLite(dbFile, major, groups) {//called at the end
-    const db = new sqlite3.Database(dbFile);
+const { clearTranscriptTables, db } = require("./dbUtils"); //import database interface JS calls and database
+
+function writeToSQLite(major, groups) {//called at the end
+    
 
     db.serialize(() => {
         db.run(`
@@ -48,135 +47,130 @@ function writeToSQLite(dbFile, major, groups) {//called at the end
         stmt.finalize();
     });
 
-    db.close();
+    
 }
 
-if (!filePath) {//cmd error
-    console.error("Usage: node reqDBtest.js <input-file>");
-    process.exit(1);
-}
-
-const rl = readline.createInterface({//create the stream to get input line by line
-    input: fs.createReadStream(filePath),
-    crlfDelay: Infinity,
-});
-
-let major = null;
-let majorCaptured = false;
-
-const groups = {};//arrays that will hold the different sections of the requirements tables
-const tempGroups = {};
-
-let baseSection = null;//the base requirements of each major
-let activeGroup = null;//the current part of the requirements the code is in
-
-const DEFAULT_GROUP = "Requirements";//had to add this because the applied stem majors were formatted stupidly
-
-baseSection = DEFAULT_GROUP;
-activeGroup = DEFAULT_GROUP;
-
-tempGroups[DEFAULT_GROUP] = new Set();//creates the first group
-
-const headerRegex = /^\*\*(.+?)\*\*$/;//the headers of most sections (minus stem majors) are bold
-//i coded requirementshtmlparser.js to represent those sections with asterisks for easy sectioning
-const courseRegex = /\b([A-Z]{2,5}\s\d{3})\b/g;//recognizes course codes like cs180
-
-const selectRegex =//recognizes the lines that say "choose 3 electives"
-  /\b(select|pick|choose|take)\s+(?:\w+|\d+)\b/i;
-
-const numberMap = {//some of them are written, some are digits
-    one: 1, two: 2, three: 3, four: 4, five: 5,
-    six: 6, seven: 7, eight: 8, nine: 9, ten: 10
-};
-
-const selectCountRegex =
-    /\b(?:select|choose|pick|take)\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)/i;
-
-const wordMap = {
-    one: 1, two: 2, three: 3, four: 4, five: 5,
-    six: 6, seven: 7, eight: 8, nine: 9, ten: 10
-};
-
-function extractSelectCount(line) {//uses the maps to determine how many courses it says to pick from for the section
-    const match = line.match(selectCountRegex);
-    if (!match) return null;
-
-    const val = match[1].toLowerCase();
-
-    if (/^\d+$/.test(val)) return parseInt(val, 10);
-
-    return wordMap[val] ?? null;
-}
-
-function ensureGroup(name) {
-    if (!tempGroups[name]) tempGroups[name] = new Set();
-    return name;
-}
-
-
-rl.on("line", (line) => {//runs per line read
-
-    if (!majorCaptured) {//grabs the major from the top of the input
-        const majorMatch = line.match(/^Major:\s*(.+)$/i);
-        if (majorMatch) {
-            major = majorMatch[1].trim();
-            majorCaptured = true;
-            return;
+function parseRequirementsFile(filePath) { //main function
+    return new Promise((resolve, reject) => {
+        if (!filePath) {//calling error
+            return reject(new Error("No file path provided"));
         }
-    }
 
-    line = line.trim();
-    if (!line) return;//cuts the blanks
+        const rl = readline.createInterface({//create the stream to get input line by line
+            input: fs.createReadStream(filePath),
+            crlfDelay: Infinity,
+        });
 
-    const headerMatch = line.match(headerRegex);
-    if (headerMatch) {//if a line with asterisks is found
-        baseSection = headerMatch[1].trim();
-        activeGroup = ensureGroup(baseSection);
-        return;//makes a group with the line's name, sets that as the active group and goes to the next line
-    }
+        let major = null;
+        let majorCaptured = false;
 
-    if (selectRegex.test(line)) {//if the line has "select four" or similar text
-        let count = extractSelectCount(line);//get the number
+        const groups = {};//arrays that will hold the different sections of the requirements tables
+        const tempGroups = {};
 
-        const isHours = /\bhours?\b/i.test(line);//if it has "hours" in it
-        
+        //had to add this because the applied stem majors were formatted stupidly and didnt have headers
+        let baseSection = "Requirements";//the base requirements of each major
+        let activeGroup = "Requirements";//the current part of the requirements the code is in
 
-        if (isHours && count) {
-        count = Math.round(count / 3);
+        tempGroups["Requirements"] = new Set();//creates the first group
+
+        const headerRegex = /^\*\*(.+?)\*\*$/;//the headers of most sections (minus stem majors) are bold
+        //i coded requirementshtmlparser.js to represent those sections with asterisks for easy sectioning
+        const courseRegex = /\b([A-Z]{2,5}\s\d{3})\b/g;//recognizes course codes like cs180
+        const selectRegex = /\b(select|pick|choose|take)\s+(?:\w+|\d+)\b/i;//recognizes the lines that say "choose 3 electives"
+
+        const numberMap = {//some of them are written, some are digits
+            one: 1, two: 2, three: 3, four: 4, five: 5,
+            six: 6, seven: 7, eight: 8, nine: 9, ten: 10
+        };
+
+        const selectCountRegex =
+            /\b(?:select|choose|pick|take)\s+(one|two|three|four|five|six|seven|eight|nine|ten|\d+)/i;
+
+        const wordMap = {
+            one: 1, two: 2, three: 3, four: 4, five: 5,
+            six: 6, seven: 7, eight: 8, nine: 9, ten: 10
+        };
+
+        function extractSelectCount(line) {//uses the maps to determine how many courses it says to pick from for the section
+            const match = line.match(selectCountRegex);
+            if (!match) return null;
+
+            const val = match[1].toLowerCase();
+            if (/^\d+$/.test(val)) return parseInt(val, 10);
+            return wordMap[val] ?? null;
         }
-        //had to add this because some of them say to select 12 credit hours rather than 4 courses
-        //without it it would think you need 12 of the electives
 
-        const derivedName =
-        baseSection
-            ? `${baseSection}_S${count}`
-            : `${DEFAULT_GROUP}_S${count}`;
+        function ensureGroup(name) {//makes sure the active group has a name so something is passed to the DB
+            if (!tempGroups[name]) tempGroups[name] = new Set();
+            return name;
+        }
 
-        activeGroup = ensureGroup(derivedName);//makes a new group with an adjusted name to signal that its a "pick number of" group
-        //this will be important in the 4 year plan generator so it knows not to take every single course in this group
-        return;
-    }
+        rl.on("line", (line) => {//runs per line read
+            if (!majorCaptured) {//grabs the major from the top of the input
+                const majorMatch = line.match(/^Major:\s*(.+)$/i);
+                if (majorMatch) {
+                    major = majorMatch[1].trim();
+                    majorCaptured = true;
+                    return;
+                }
+            }
 
-    const matches = line.matchAll(courseRegex);//looks for course codes
+            line = line.trim();
+            if (!line) return;//cuts the blanks
 
-    if (!activeGroup) {
-        activeGroup = ensureGroup(DEFAULT_GROUP);
-    }
+            const headerMatch = line.match(headerRegex);
+            if (headerMatch) {//if a line with asterisks is found
+                baseSection = headerMatch[1].trim();
+                activeGroup = ensureGroup(baseSection);
+                return;//makes a group with the line's name, sets that as the active group and goes to the next line
+            }
 
-    for (const m of matches) {//adds the current line's course to the list
-        tempGroups[activeGroup].add(m[1]);
-    }
-});
+            if (selectRegex.test(line)) {//if the line has "select four" or similar text
+                let count = extractSelectCount(line);//get the number
+                const isHours = /\bhours?\b/i.test(line);//if it has "hours" in it
 
-rl.on("close", () => {//once there are no more lines
-    for (const key in tempGroups) {
-        groups[key] = Array.from(tempGroups[key]);
-    }//turn the groups into arrays
+                if (isHours && count) {
+                    count = Math.round(count / 3);
+                }//had to add this because some of them say to select 12 credit hours rather than 4 courses
+                //without it it would think you need 12 of the electives
 
-    writeToSQLite("database.db", major, groups);//calls the database function
+                const derivedName =
+                    baseSection
+                        ? `${baseSection}_S${count}`
+                        : `Requirements_S${count}`;
 
-    console.log({//this was for debug
-        major,
-        groups
+                activeGroup = ensureGroup(derivedName);
+                //makes a new group with an adjusted name to signal that its a "pick number of" group
+                //this will be important in the 4 year plan generator so it knows not to take every single course in this group
+                return;
+            }
+
+            const matches = line.matchAll(courseRegex);//looks for course codes
+
+            if (!activeGroup) {
+                activeGroup = ensureGroup("Requirements");
+            }
+
+            for (const m of matches) {//adds the current line's course to the list
+                tempGroups[activeGroup].add(m[1]);
+            }
+        });
+
+        rl.on("close", () => {//once there are no more lines
+            for (const key in tempGroups) {
+                groups[key] = Array.from(tempGroups[key]);
+            }
+
+            writeToSQLite(major, groups);
+
+            resolve({ major, groups });
+        });
+
+        rl.on("error", reject);
     });
-});
+}
+
+
+module.exports = { parseRequirementsFile };
+
+

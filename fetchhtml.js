@@ -1,9 +1,9 @@
 //HTML SCRAPER FILE
-//Freddy Goodwin
+//FREDDY GOODWIN
 
 const fs = require("fs");
 
-async function fetchHTML(url) {
+async function fetchHTML(url, outputFile = "scrapeoutput.txt") {//defaults to scrapeoutput, other name can be determined on call
     if (!url) {
         throw new Error("No URL");
     }
@@ -14,12 +14,11 @@ async function fetchHTML(url) {
         throw new Error(`HTTP error: ${response.status}`);
     }
 
-    const html = await response.text(); // extract HTML string
-    fs.writeFileSync("scrapeoutput.txt", html, "utf8");//print to file
-    console.log("HTML saved to scrapeoutput.txt");
+    const html = await response.text(); //extract html string
+    fs.writeFileSync(outputFile, html, "utf8");//print to file
+    console.log(`HTML saved to ${outputFile}`);
 
     return;
 }
 
-//allow it to be called elsewhere
 module.exports = { fetchHTML };

@@ -4,6 +4,8 @@
 const fs = require("fs");
 const sqlite3 = require("sqlite3").verbose();
 
+const { clearTranscriptTables, db } = require("./dbUtils"); //import database interface JS calls and database
+
 const gradeRank = {//assigns values to letter grades
   A: 4,
   B: 3,
@@ -75,11 +77,11 @@ function processPrereqs(prereqObj, parentCourse, rows = []) {
 }
 
 function importCourses({//main function
-  dbPath = "database.db",
+  
   jsonPath = "courses.json",
   log = true
 } = {}) {
-  const db = new sqlite3.Database(dbPath);
+  
   const data = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
 
   db.serialize(() => {//inserting the course data
@@ -110,9 +112,7 @@ function importCourses({//main function
       });
     });
   });
-  db.close(() => {
-    if (log) console.log("DB insertion complete");
-  });
+  
 }
 
 module.exports = {
