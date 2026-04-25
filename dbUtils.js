@@ -7,7 +7,13 @@
 //requirement imports
 const sqlite3 = require("sqlite3").verbose();
 
-const db = new sqlite3.Database("database.db");//initialize database
+const path = require("path");
+
+const db = new sqlite3.Database(
+    path.resolve(__dirname, "database.db")
+);
+
+console.log("OPENING DB:", path.resolve(__dirname, "database.db"));
 
 //clearing temporary transcript data
 function clearTranscriptTables() {
@@ -25,4 +31,17 @@ function clearTranscriptTables() {
     });
 }
 
-module.exports = { db, clearTranscriptTables };//export functions and database
+function deleteProgramReqs(programName) {//deletes all rows in requirements table related to a major so they can be redone
+    return new Promise((resolve, reject) => {
+        db.run(
+            "DELETE FROM requirements WHERE program_name = ?",
+            [programName],
+            function (err) {
+                if (err) return reject(err);
+                resolve(this.changes);//number of rows deleted
+            }
+        );
+    });
+}
+
+module.exports = { db, clearTranscriptTables, deleteProgramReqs };//export functions and database

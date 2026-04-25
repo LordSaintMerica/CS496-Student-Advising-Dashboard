@@ -8,46 +8,58 @@ const sqlite3 = require("sqlite3").verbose();
 
 const { clearTranscriptTables, db } = require("./dbUtils"); //import database interface JS calls and database
 
-function writeToSQLite(major, groups) {//called at the end
-    
+function writeToSQLite(major, groups) {
+    return new Promise((resolve, reject) => {
+        db.serialize(() => {
+            db.run(`
+                CREATE TABLE IF NOT EXISTS Programs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE
+                )
+            `, (err) => {
+                if (err) return reject(err);
+            });
 
-    db.serialize(() => {
-        db.run(`
-            CREATE TABLE IF NOT EXISTS Programs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE
-            )
-        `);
+            db.run(`
+                CREATE TABLE IF NOT EXISTS requirements (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    program_name TEXT,
+                    group_name TEXT,
+                    course TEXT
+                )
+            `, (err) => {
+                if (err) return reject(err);
+            });
 
-        db.run(`
-            CREATE TABLE IF NOT EXISTS requirements (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                program_name TEXT,
-                group_name TEXT,
-                course TEXT
-            )
-        `);
+            db.run(
+                `INSERT OR IGNORE INTO Programs (name) VALUES (?)`,
+                [major],
+                (err) => {
+                    if (err) return reject(err);
+                }
+            );
 
-        db.run(
-            `INSERT OR IGNORE INTO Programs (name) VALUES (?)`,
-            [major]
-        );
+            const stmt = db.prepare(`
+                INSERT INTO requirements (program_name, group_name, course)
+                VALUES (?, ?, ?)
+            `, (err) => {
+                if (err) return reject(err);
+            });
 
-        const stmt = db.prepare(`
-            INSERT INTO requirements (program_name, group_name, course)
-            VALUES (?, ?, ?)
-        `);//loops all of the course groups into the db
-
-        for (const [groupName, courses] of Object.entries(groups)) {
-            for (const course of courses) {
-                stmt.run(major, groupName, course);
+            for (const [groupName, courses] of Object.entries(groups)) {
+                for (const course of courses) {
+                    stmt.run(major, groupName, course, (err) => {
+                        if (err) return reject(err);
+                    });
+                }
             }
-        }
 
-        stmt.finalize();
+            stmt.finalize((err) => {
+                if (err) return reject(err);
+                resolve();
+            });
+        });
     });
-
-    
 }
 
 function parseRequirementsFile(filePath) { //main function
@@ -156,14 +168,17 @@ function parseRequirementsFile(filePath) { //main function
             }
         });
 
-        rl.on("close", () => {//once there are no more lines
+        rl.on("close", async () => {
             for (const key in tempGroups) {
                 groups[key] = Array.from(tempGroups[key]);
             }
 
-            writeToSQLite(major, groups);
-
-            resolve({ major, groups });
+            try {
+                await writeToSQLite(major, groups);
+                resolve({ major, groups });
+            } catch (err) {
+                reject(err);
+            }
         });
 
         rl.on("error", reject);

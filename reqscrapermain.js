@@ -1,4 +1,4 @@
-const { clearTranscriptTables, db } = require("./dbUtils"); //import database interface JS calls and database
+const { deleteProgramReqs, clearTranscriptTables, db } = require("./dbUtils"); //import database interface JS calls and database
 const { reqHTMLParser } = require("./requirementshtmlparser");//import requirements parser
 const { parseRequirementsFile } = require("./requirementsDB");//import requirements database writer
 const {
@@ -26,10 +26,11 @@ requirementScraper(inputLink);
 
 
 async function requirementScraper(inputLink) {//main function
-    const htmlFile = "scrapedHTML";
+    const htmlFile = "scrapedHTML.html";
     const parsedFile = "parsedReqs.txt";
     await fetchHTML(checkURL(inputLink), htmlFile);
     const major = await reqHTMLParser(htmlFile, parsedFile);
+    await deleteProgramReqs(major); //this deletes a major's requirements so the next line can redo them
     await parseRequirementsFile(parsedFile);
     await prereqMain(major);
     db.close();

@@ -19,8 +19,13 @@ async function reqHTMLParser(inputFile, outputFile = "output.txt"){
 
     const $ = cheerio.load(html);
 
-    $('[aria-hidden="true"]').remove(); //the cs major had hidden h3 tags that made the parser not work
-    //this removes the hidden sections
+
+    $('[aria-labelledby="texttab"]').remove(); //the cs major had hidden h3 tags in the overview that made the parser not work
+    $('[aria-labelledby="finishinfourtexttab"]').remove();
+    //this removes the overview and finishinfour sections
+
+    let concentrations = false;//some pages have different concentrations
+    concentrations = /\bconcentration\b/.test($("body").text().toLowerCase()); //looks for the word "concentration" and returns bools
 
     //get major title from the page and gets rid of the bachelor's degree after
     let major = $("h1.page-title").first().text().trim();
@@ -34,26 +39,56 @@ async function reqHTMLParser(inputFile, outputFile = "output.txt"){
         output += `Major: ${major}\n\n`;
     }
 
-    //tracks how many h3 tags seen
-    //other concentrations appear after a certain number of h3 tags, which i dont need
+    //tracks how many h3 tags and concentrations are seen
+    //we only need one concentration
     let h3Count = 0;
+    let currentConcentration = false;
+    let concentrationCount = 0;
     let tableIndex = 0;
 
     //go through the HTML with cheerio, which is what i used chatgpt for
     $("body").find("*").each((i, el) => {
         const tag = el.tagName;
+        currentConcentration = false;
 
-        //count h3 tags
-        if (tag === "h3") {
-            console.log(`h3 found.`);
-            h3Count++;
-            if (h3Count >= 2) {
-                return false; //stop if enough h3s are found
+        if (!concentrations && tag === "h3") {//if there are no concentrations, handle h3s like areaheaders
+            const txt = $(el).text().trim();
+
+            if (txt) {
+                //replace h3 with bold text
+                output += `**${txt}**\n\n`;
             }
+
+            return;
         }
 
+        //count h3 tags
+        if (concentrations && tag === "h3") {
+            h3Count++;
+            console.log(`h3 ${h3Count} found.`);
+            if (/\bconcentration\b/.test($(el).text().toLowerCase())) {//if the h3 contains the word "concentration"
+                currentConcentration = true;
+                concentrationCount++;
+            }
+            
+            if(h3Count >= 2 && currentConcentration && concentrationCount === 1){
+                //lets it read the first instance of a concentration
+            } else if(h3Count >= 2 && concentrationCount === 0){
+                //if its going through tables and hasn't hit a concentration yet
+            }
+            else if (h3Count >= 2) {
+                return false; //stop if enough h3s are found
+            }
+            if(concentrationCount > 2){//if it ever moves onto another concentration
+                return false;
+            }
+        }
+        
+        
+        
         //process all table elements
-        if (tag === "table" && $(el).hasClass("sc_courselist")) {//they all have this html class, very handy
+        if ($(el).is("table.sc_courselist")) {//they all have this html class, very handy
+            
             tableIndex++;
             output += `Table ${tableIndex}\n`;
 
@@ -74,6 +109,7 @@ async function reqHTMLParser(inputFile, outputFile = "output.txt"){
                     let text = $(cell).text().trim();
                     text = text.replace(/\s+/g, " ");
                     rowData.push(text);
+                    
                 });
 
                 //grab hrefs, also important for the prereq info
@@ -87,6 +123,7 @@ async function reqHTMLParser(inputFile, outputFile = "output.txt"){
 
                 //add links
                 rowData.push(links.length > 0 ? links.join(", ") : "");
+                
 
                 if (rowData.length > 0) {
                     output += rowData.join("\t") + "\n";
