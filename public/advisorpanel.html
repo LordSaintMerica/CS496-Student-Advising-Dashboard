@@ -9,6 +9,11 @@
 
     <h2>ADVISOR PANEL PAGE</h2>
     <p id="user"></p>
+
+    <form action="/logout" method="GET">
+        <button type="submit">Logout</button>
+    </form>
+
     <p>yippee!! you're in the advisor panel.</p>
 
     <form action="/deleteuser" method="POST">
@@ -30,7 +35,21 @@
         
     </form>
 
+    <form action="/scrape" method="POST">
+        <label for="url">Enter Website URL:</label>
+        <input type="url" name="url" id="url" placeholder="https://catalog.wku.edu/undergraduate/science-engineering/engineering-applied-sciences/computer-science-bs/" required><br>
+        
+        <p>Please only use links leading to WKU's bachelor degree catalog. Note: this may take a moment.</p>
+
+        <a href="https://catalog.wku.edu/undergraduate/science-engineering/engineering-applied-sciences/computer-science-bs/" target="_blank" rel="noopener noreferrer">
+            Example Catalog Page
+        </a>
+
+        <button type="submit">Run Requirements Scraper</button>
+    </form>
+
     <script>
+        //this grabs the user's username so it can display it up at the top
         fetch('/api/currentuser')
             .then(res => res.json())
             .then(data => {

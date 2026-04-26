@@ -61,12 +61,16 @@
     
     <form action="/uploadtranscript" method="post" enctype="multipart/form-data">
         <label for="file-upload">Select file:</label>
-        <input type="file" id="file-upload" name="file" accept=".txt" />
+        <input type="file" id="file-upload" name="file" accept=".pdf" />
         <button type="submit">Upload Transcript</button>
     </form>
 
     
     <form action="/logout" method="GET">
+        <button type="submit">Logout</button>
+    </form>
+
+        <form action="/transcript" method="GET">
         <button type="submit">Logout</button>
     </form>
 

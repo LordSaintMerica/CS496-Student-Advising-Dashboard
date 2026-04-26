@@ -25,7 +25,8 @@ async function reqHTMLParser(inputFile, outputFile = "output.txt"){
     //this removes the overview and finishinfour sections
 
     let concentrations = false;//some pages have different concentrations
-    concentrations = /\bconcentration\b/.test($("body").text().toLowerCase()); //looks for the word "concentration" and returns bools
+    concentrations = /\b(concentration|option)\b/.test($("body").text().toLowerCase()); //looks for the word "concentration" and returns bools
+    //also looks for "option" because thats what the math department calls it
 
     //get major title from the page and gets rid of the bachelor's degree after
     let major = $("h1.page-title").first().text().trim();
@@ -66,7 +67,7 @@ async function reqHTMLParser(inputFile, outputFile = "output.txt"){
         if (concentrations && tag === "h3") {
             h3Count++;
             console.log(`h3 ${h3Count} found.`);
-            if (/\bconcentration\b/.test($(el).text().toLowerCase())) {//if the h3 contains the word "concentration"
+            if (/\b(concentration|option)\b/.test($(el).text().toLowerCase())) {//if the h3 contains the word "concentration"
                 currentConcentration = true;
                 concentrationCount++;
             }

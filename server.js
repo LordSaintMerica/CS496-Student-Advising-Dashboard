@@ -10,8 +10,9 @@ const path = require('path');//serving HTML
 const multer = require("multer");//receiving files from frontend
 
 //imports the functions of the other JS files
-const { parseTranscript } = require("./transcriptparser"); //import transcript parser JS calls
+const { processPDF } = require("./transcriptparser");
 const { clearTranscriptTables, db } = require("./dbUtils"); //import database interface JS calls and database
+const { requirementScraper } = require("./reqscrapermain");
 const app = express();
 
 //stores temporary info in memory
@@ -207,27 +208,72 @@ app.get('/advisorpanel', (req, res) => {
 //forward file from transcript.html to its parser
 app.post("/uploadtranscript", upload.single("file"), async (req, res) => {
     try {
-        if (!req.file) {//submit with no file
+        if (!req.file) {
             return res.status(400).send("No file uploaded");
         }
-        
-        if (req.file.mimetype !== "application/pdf") {//wrong type check
-            //change this to PDF after fixing it
+
+        if (req.file.mimetype !== "application/pdf") {
             return res.status(400).send("Only .pdf files are allowed");
         }
 
-        const fileContent = req.file.buffer.toString("utf-8");//convert file to string
+        // 1. Parse PDF (NOW includes major + credits)
+        const result = await processPDF(req.file.buffer);
 
-        const result = await parseTranscript(fileContent, {//send file string to parser
-            someOption: true
+        // 2. Clear old transcript data (prevents duplicates)
+        await clearTranscriptTables(db);
+
+        // 3. Validate extracted data
+        const program = result.major || req.session.program || "UNDECLARED";
+        const creditHours = result.creditHours || 0;
+
+        req.session.program = result.major;
+
+        if (!program) {
+            return res.status(400).send("No program detected");
+        }
+
+        // 4. Insert Transcript row
+        const transcriptID = await new Promise((resolve, reject) => {
+            db.run(
+                `INSERT INTO Transcript (Program, CreditHours, SemestersNum)
+                 VALUES (?, ?, ?)`,
+                [
+                    program,
+                    creditHours,
+                    0 // still placeholder for now
+                ],
+                function (err) {
+                    if (err) return reject(err);
+                    resolve(this.lastID);
+                }
+            );
         });
 
+
+
+        // 4. Insert all courses safely (sequential async)
+        for (const entry of result.table) {
+            const courseNum = `${entry.subject}${entry.course}`;
+
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO TranscriptCourses (TranscriptID, CourseNum, Grade)
+                     VALUES (?, ?, ?)`,
+                    [transcriptID, courseNum, entry.grade],
+                    (err) => {
+                        if (err) return reject(err);
+                        resolve();
+                    }
+                );
+            });
+        }
+
+        // 5. Done
         res.redirect("/fouryearplan.html?source=uploadtranscript");
 
-    } catch (err) {//error catch
+    } catch (err) {
         console.error(err);
         res.status(500).send("Server error");
-
     }
 });
 
@@ -269,6 +315,34 @@ app.get('/api/is-advisor', (req, res) => {
         res.json({ isAdvisor });//returns bool
     });
 });
+
+app.post('/scrape', async (req, res) => {//called when advisor submits on the requirement scraper
+    const url = req.body.url;
+    if (!isValidUrl(url)) {//checks to ensure link leads to wku's catalogs, does this if fails
+        return res.status(400).send('Invalid URL. <br> Proper format: https://catalog.wku.edu/undergraduate/science-engineering/engineering-applied-sciences/computer-science-bs/ <br> <a href="/advisorpanel">Go back</a>');
+    }
+
+    try {//run the requirement scraper main function
+        const result = await requirementScraper(url);
+        return res.send('Requirement Scraper complete! Thank you for waiting. <a href="/advisorpanel">Go back</a>');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error scraping the website.<a href="/advisorpanel">Go back</a>');
+    }
+});
+
+function isValidUrl(input) {//checks to ensure link leads to wku's catalogs
+    try {
+        const parsed = new URL(input.trim());
+
+        return (
+            (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+            parsed.hostname.toLowerCase() === "catalog.wku.edu"
+        );
+    } catch (err) {
+        return false;
+    }
+}
 
 
 //this is what originally ran when you logout, which i replaced with the new one

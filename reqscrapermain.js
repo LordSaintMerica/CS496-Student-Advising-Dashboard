@@ -20,8 +20,8 @@ const { fetchHTML } = require("./fetchhtml");
 
 
 
-const inputLink = process.argv[2]; //remove this when integrating into server
-requirementScraper(inputLink);
+//const inputLink = process.argv[2]; //remove this when integrating into server
+//requirementScraper(inputLink);
 
 
 
@@ -59,3 +59,6 @@ function checkURL(url) {//checks to make sure the url is pointing to the right p
 
     return result;
 }
+module.exports = {
+  requirementScraper
+};
