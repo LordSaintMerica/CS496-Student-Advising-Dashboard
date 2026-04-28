@@ -40,7 +40,7 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
     let winterSeasons = false;
     let summerSeasons = false;
     if(major === undefined){
-        major = "Computer Science";
+        //major = "Computer Science";
     }
     if (transcript === undefined){
         transcript = false;
@@ -713,7 +713,8 @@ async function isAvailableCourse(courseName, season, takenCourses) {//returns tr
  
     return false;
   } 
-  const juniorCourses = new Set(["ART 432", "CSJ 499"]);//junior-only
+  const juniorCourses = new Set(["ART 432", "CSJ 499", "PSY 331", "PSY 350","PSY 363","PSY 481", "PSY 499", "PSYS 499", "PSY 352", "PSY 353",
+    "PSY 357", "PSY 370", "PSY 440", "PSY 450","PSY 451","PSY 453","PSY 482","PSY 355","PSY 412","PSY 470"]);//junior-only
   //senior-only
   const seniorCourses = new Set(["ART 434", "DCS 400", "ENG 413", "ENG 414", "ENG 416", "EXS 498", "FILM 486", "IDST 495", "ARC 499", "BCOM 482", 
     "BE 486", "CRIM 499", "ECON 499", "ENGR 490", "HMD 459", "IA 497", "LS 495", "MGT 498", "PHIL 496", "POP 498", "RELS 496",]);
