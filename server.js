@@ -23,6 +23,8 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 app.use(express.urlencoded({ extended: true }));
 
+const logFilePath = path.join(__dirname, "activity_log.csv"); //where the report logs are saved
+
 // session setup first
 app.use(session({
     secret: 'encryptthisstringlater',
@@ -82,6 +84,7 @@ app.post('/auth', (req, res) => {
 
                 if (result) { //if successful
                     req.session.user = user.Username;
+                    logActivity(user.Username, "logged in");
                     res.sendFile(path.join(__dirname, 'public', 'transcript.html'));
                 } else { //if password is wrong
                     res.send('Invalid password. <a href="/">Go back</a>');
@@ -116,7 +119,7 @@ app.post('/auth', (req, res) => {
                             console.error(err);
                             return res.send('Error creating user <a href="/">Go back</a>');
                         }
-
+                        logActivity(username, "created");
                         res.send('User created successfully! <a href="/">Go back</a>');
                     }
                 );
@@ -149,6 +152,7 @@ app.post('/deleteuser', (req, res) => {
                     console.error(err.message);
                     return res.json({ success: false, message: 'Delete failed' });
                 }
+            logActivity(req.session.user, `deleted user ${username}`);
             return res.json({ success: true, message: 'User deleted' });
             })
         });
@@ -181,7 +185,7 @@ app.post('/addadvisor', (req, res) => {
                             console.error(err);
                             return res.send('Error creating user <a href="/advisorpanel">Go back</a>');
                         }
-
+                        logActivity(req.session.user, `added user ${username}`);
                         res.send('Advisor created successfully! <a href="/advisorpanel">Go back</a>');
                     }
                 );
@@ -241,13 +245,13 @@ app.post("/uploadtranscript", upload.single("file"), async (req, res) => {
             return res.status(400).send("Only .pdf files are allowed");
         }
 
-        // Parse PDF
+        //parse PDF
         const result = await processPDF(req.file.buffer);
 
-        // Clear old transcript data
+        //delete old transcript data
         await clearTranscriptTables(db);
 
-        // Validate extracted data
+        //validate extracted data
         const program = result.major || req.session.program || "UNDECLARED";
         const creditHours = result.creditHours || 0;
         const semesters = result.semesters || 0;
@@ -256,11 +260,11 @@ app.post("/uploadtranscript", upload.single("file"), async (req, res) => {
             return res.status(400).send("No program detected");
         }
 
-        // Save session values
+        //save session values
         req.session.program = result.major || req.session.program;
         req.session.hasTranscript = true;
 
-        // Insert Transcript row
+        //insert Transcript row
         const transcriptID = await new Promise((resolve, reject) => {
             db.run(
                 `INSERT INTO Transcript (Program, CreditHours, SemestersNum)
@@ -273,7 +277,7 @@ app.post("/uploadtranscript", upload.single("file"), async (req, res) => {
             );
         });
 
-        // Insert courses
+        //insert courses
         for (const entry of result.table) {
             const courseNum = `${entry.subject}${entry.course}`;
 
@@ -290,19 +294,20 @@ app.post("/uploadtranscript", upload.single("file"), async (req, res) => {
             });
         }
 
-        // Generate plan
+        //generate plan
         const plan = await generatePlan(program, true, false, false);
 
         console.log("PLAN RESULT:", plan);
+        logActivity(req.session.user, `uploaded transcript`);
 
         if (!plan) {
             return res.status(500).send("Failed to generate plan");
         }
 
-        // Save session plan
+        //save session plan
         req.session.fourYearPlan = plan;
 
-        // Write file ONCE
+        //write file
         const fs = require("fs");
         fs.writeFileSync(
             "./public/fouryearplan.json",
@@ -340,7 +345,7 @@ app.post("/api/generate-plan", async (req, res) => {
         );
 
         req.session.fourYearPlan = plan;
-
+        logActivity(req.session.user, `generated a four year plan`);
         res.json({ success: true });
 
     } catch (err) {
@@ -399,7 +404,7 @@ app.post('/scrape', async (req, res) => {//called when advisor submits on the re
     if (!isValidUrl(url)) {//checks to ensure link leads to wku's catalogs, does this if fails
         return res.status(400).send('Invalid URL. <br> Proper format: https://catalog.wku.edu/undergraduate/science-engineering/engineering-applied-sciences/computer-science-bs/ <br> <a href="/advisorpanel">Go back</a>');
     }
-
+    logActivity(req.session.user, `ran the Requirement Scraper`);
     try {//run the requirement scraper main function
         const result = await requirementScraper(url);
         return res.send('Requirement Scraper complete! Thank you for waiting. <a href="/advisorpanel">Go back</a>');
@@ -432,6 +437,7 @@ function isValidUrl(input) {//checks to ensure link leads to wku's catalogs
 
 //new logout function that deletes transcript table data
 app.get("/logout", (req, res) => {
+    logActivity(req.session.user, `logged out`);
     clearTranscriptTables(db)
         .then(() => {
             req.session.destroy(err => {//deletes users express session
@@ -465,7 +471,7 @@ app.post("/programselect", async (req, res) => {
 
         req.session.program = program;
 
-        // generate plan WITHOUT transcript
+        //generate plan without transcript
         const plan = await generatePlan(
             program,
             false,  // transcript = false
@@ -475,11 +481,55 @@ app.post("/programselect", async (req, res) => {
         );
 
         req.session.fourYearPlan = plan;
-
+        logActivity(req.session.user, `generated a four year plan`);
         res.redirect("/fouryearplan?source=programselect");
 
     } catch (err) {
         console.error(err);
         res.status(500).send("Server error");
     }
+});
+
+function logActivity(user, action) { //creates or updates the report log
+    const timestamp = new Date().toISOString(); //gets the date
+
+    const line = `"${user}","${action}","${timestamp}"\n`;
+
+    try {
+        //create file if it doesn't exist
+        if (!fs.existsSync(logFilePath)) {
+            fs.writeFileSync(logFilePath, `"User","Action","Timestamp"\n`);
+        }
+
+        //new entry
+        fs.appendFileSync(logFilePath, line);
+    } catch (err) {
+        console.error("Logging error:", err);
+    }
+}
+
+app.get("/download-logs", (req, res) => {//called when an advisor downloads the logs
+    const filePath = path.join(__dirname, "activity_log.csv");
+
+    //catch for people who somehow are on the advisor panel but aren't advisors
+    db.get('SELECT IsAdvisor FROM Users WHERE Username = ?', [req.session.user], (err, row) => {
+    if (err || !row || !(row.IsAdvisor === 'true' || row.IsAdvisor === 1)) {
+        return res.status(403).send("Access denied");
+    }
+
+    res.download(filePath, "activity_log.csv");
+});
+
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+        if (err) {
+            return res.status(404).send("Log file not found");
+        }
+        logActivity(req.session.user, `downloaded the report logs`);
+        res.download(filePath, "activity_log.csv", (err) => {
+            if (err) {
+                console.error(err);
+                res.status(500).send("Error downloading file");
+            }
+        });
+    });
 });

@@ -3,14 +3,24 @@
     "1": {
       "season": "Fall",
       "courses": [
-        "ARTS & HUMANITIES ELECTIVE",
-        "SYSTEMS ELECTIVE",
+        "ENG 100",
+        "WORLD LANGUAGE FIRST COURSE",
+        "NATURAL & PHYSICAL SCIENCES ELECTIVE 2",
+        "SOCIAL & CULTURAL ELECTIVE",
+        "LOCAL TO GLOBAL ELECTIVE"
+      ]
+    },
+    "2": {
+      "season": "Spring",
+      "courses": [
+        "WORLD LANGUAGE SECOND COURSE",
         "GENERAL ELECTIVE 0",
         "GENERAL ELECTIVE 1",
-        "GENERAL ELECTIVE 2"
+        "GENERAL ELECTIVE 2",
+        "GENERAL ELECTIVE 3"
       ]
     }
   },
-  "totalCredits": 124,
+  "totalCredits": 131,
   "major": "Computer Science"
 }

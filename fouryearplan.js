@@ -287,7 +287,8 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
         semesters[1].courses.add("MATH 117")
     }
 
-    while (semesterCount < 10){//this loop will be broken so 10 is just a failsafe
+    while (semesterCount < 13){//this loop will be broken so 13 is just a failsafe
+        //used to be 10 but that broke summer and winter course generation
         
         
         while (semesters[semesterCount].courses.size < semesterCourses){//while a course can fit in the semester
