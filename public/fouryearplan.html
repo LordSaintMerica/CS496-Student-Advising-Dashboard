@@ -116,7 +116,27 @@
             document.getElementById("programname").textContent =
                 data.major || "Unknown";
 
-            const semesters = data.semesters;
+            const creditsElement = document.getElementById("credits");
+
+            if (data.graduationElegible === false) {//this part makes the red warning show up if the plan won't let you graduate
+            //only should show up on transcript plans, should never show up on default plans
+                let warning = document.getElementById("grad-warning");
+
+                if (!warning) {
+                    warning = document.createElement("p");
+                    warning.id = "grad-warning";
+                    warning.style.color = "red";
+                    warning.style.fontWeight = "bold";
+                    warning.textContent = "Graduation in four years is not feasible based on this plan.";
+                    creditsElement.parentNode.insertBefore(warning, creditsEl);
+                }
+            } else {
+                const warning = document.getElementById("grad-warning");
+                if (warning) warning.remove();
+            }
+
+
+            const semesters = data.semesters;//pulls the planned semesters from the json
 
             for (const [semNum, semData] of Object.entries(semesters)) {
 
@@ -145,7 +165,7 @@
         }
 
         //regenerates the plan without needing a page refresh
-        //gets the json data from fouryearplan.json
+        //calls the load again after receiving the json 
         function regeneratePlan() {
 
             const sixCourse = document.getElementById("sixCourse").checked;
@@ -165,14 +185,14 @@
             })
             .then(res => res.json())
             .then(() => {
-                loadPlan(); // refresh without full page reload
+                loadPlan(); //refresh 
             })
             .catch(err => {
                 console.error("Failed to regenerate plan:", err);
             });
         }
 
-        // initial load
+        //initial load
         loadPlan();
         </script>
     </main>

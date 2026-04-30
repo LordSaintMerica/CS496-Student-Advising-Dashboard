@@ -30,17 +30,13 @@ async function generatePlan(major, transcript, sixCourse, summer, winter) {//thi
     }
 }
 
-//generatePlan();
 
 
-
-
-//fouryearplan("Computer Science", true, false, false, false);
 async function fouryearplan(major, transcript, sixCourse, summer, winter) {
     let winterSeasons = false;
     let summerSeasons = false;
     if(major === undefined){
-        //major = "Computer Science";
+        //major = "Computer Science"; this was from testing
     }
     if (transcript === undefined){
         transcript = false;
@@ -74,6 +70,8 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
     
     let worldLanguage1 = false; //must be before 60 credits, 2 parts
     let worldLanguage2 = false;
+    let majorFinal = false; //checks to ensure the major's last course is complete
+    
     
 
     let entryMathQueue = false;
@@ -92,6 +90,9 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
     
     let worldLanguage1Queue = false;
     let worldLanguage2Queue = false; //must be before 60 credits, 2 parts
+    let majorFinalQueue = false; //checks to ensure the major's last course is complete
+    
+    let graduationElegible = false; //turns true once all the requirements are fulfilled
 
 
     
@@ -108,18 +109,18 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
     const colonnade = await getColonnade();
     //console.log(colonnade);
     
-    const transcriptCourses = new Set();
+    let transcriptCourses = new Map();
     const semesters = {};
     let semesterCount = 1;
     let totalCredits = 0;
     let genElectCount = 0;
-    const takenCourses = new Set();
+    let takenCourses = new Map();//changed to map to house grades as well
     if(transcript){//if a transcript was uploaded, it will already be in the database
         
-        const takenCourses = await getTranscriptCourses();
-        //console.log("taken");
+        takenCourses = await getTranscriptCourses();
+
         console.log(takenCourses);
-        //console.log("takenCourses");
+
         const res = await getTranscriptData();
         totalCredits = res.CreditHours;
         console.log(totalCredits);
@@ -128,92 +129,81 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
         }
         let scitriggered = false;
         let langtriggered = false;
-        for(const course of takenCourses){//removes requirements if they are already taken
-            
-            if(course === "ENG 100"){
-                //console.log(`${course} verified as entry english`);
+
+        for (const [course, grade] of takenCourses) {//removes requirements if they are already taken
+  
+            if (grade === "W" || grade === "F") continue;//skip failed courses
+
+            if (course === "ENG 100") {
                 entryEng = true;
                 continue;
             }
-            if(course === "ENG 200" || course === "MLNG 200" || course === "RELS 200"){
+            if (course === "ENG 200" || course === "MLNG 200" || course === "RELS 200") {
                 litStudies = true;
-                //console.log(`${course} verified as 200 level eng`);
                 continue;
             }
-            if(course === "COMM 200" || course === "GEOG 300" || course === "PSYS 300" || course === "ENG 300"){
+            if (course === "COMM 200" || course === "GEOG 300" || course === "PSYS 300" || course === "ENG 300") {
                 writing300 = true;
-                //console.log(`${course} verified as 300 level eng`);
                 continue;
             }
-            if(course === "COMM 145"){
+            if (course === "COMM 145") {
                 entryComm = true;
-                //console.log(`${course} verified as communicaiton`);
                 continue;
             }
-            if(course === "HIST 101" || course === "HIST 102"){
+            if (course === "HIST 101" || course === "HIST 102") {
                 entryHist = true;
-                //console.log(`${course} verified as history`);
                 continue;
             }
-            if(colonnade["Quantitative Reasoning"].has(course)){
+            if (colonnade["Quantitative Reasoning"].has(course)) {
                 entryMath = true;
-                //console.log(`${course} verified as quant reason`);
                 continue;
             }
-            if(colonnade["Arts & Humanities"].has(course)){
+            if (colonnade["Arts & Humanities"].has(course)) {
                 humanities = true;
-                //console.log(`${course} verified as arts and human`);
                 continue;
             }
-            if(colonnade["Social & Behavioral Sciences"].has(course)){
+            if (colonnade["Social & Behavioral Sciences"].has(course)) {
                 socialSci = true;
-                //console.log(`${course} verified as soc behav sci`);
                 continue;
             }
-            if(colonnade["Natural & Physical Sciences"].has(course) && !scitriggered){
+            if (colonnade["Natural & Physical Sciences"].has(course) && !scitriggered) {
                 natPhysSci1 = true;
-                //console.log(`${course} verified as nat phys sci 1`);
                 scitriggered = true;
                 continue;
             }
-            if(colonnade["Natural & Physical Sciences"].has(course)){
+            if (colonnade["Natural & Physical Sciences"].has(course)) {//only triggers if first one is taken
                 natPhysSci2 = true;
-                //console.log(`${course} verified as nat phys sci 2`);
                 continue;
             }
-            if(colonnade["Social & Cultural"].has(course)){
+            if (colonnade["Social & Cultural"].has(course)) {
                 cultConn = true;
-                //console.log(`${course} verified as soc cult`);
                 continue;
             }
-            if(colonnade["Local to Global"].has(course)){
+            if (colonnade["Local to Global"].has(course)) {
                 localGlobal = true;
-                //console.log(`${course} verified as localglobal`);
                 continue;
             }
-            if(colonnade["Systems"].has(course)){
+            if (colonnade["Systems"].has(course)) {
                 systems = true;
-                //console.log(`${course} verified as systems`);
                 continue;
             }
-            if(colonnade["World Language Proficiency"].has(course) && !langtriggered){
+            if (colonnade["World Language Proficiency"].has(course) && !langtriggered) {
                 worldLanguage1 = true;
-                //console.log(`${course} verified as world lang 1`);
                 langtriggered = true;
                 continue;
             }
-            if(colonnade["World Language Proficiency"].has(course)){
+            if (colonnade["World Language Proficiency"].has(course)) {//only triggers if first one is taken
                 worldLanguage2 = true;
-                //console.log(`${course} verified as world lang 2`);
                 continue;
             }
-
         }
     }
-    
+
+
     const requirements = await getRequirements(major);
-    //console.log(requirements);
-    
+
+    //the electives of these (GEOG, CHEM, ART, PHYS) are printed generic but the system needs something concrete to check for
+    //so these were chosen for their high availability and are overwritten in this next loop if the major also fulfills them
     let litStudiesCourse = "ENG 200";
     let writing300Course = "ENG 300";
     let humanitiesCourse = "ART 100";
@@ -222,9 +212,24 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
     scitriggered = false;
     let natPhysSci2Course = "PHYS 103";
 
+    let finalCourse = null;
+    let biggestNum = 0;
 
-    for(const group in requirements){//
+
+    for(const group in requirements){//this overwrites those base elective ones with any that are fulfilled by the major itself
+        //this prevents you from having to take multiple
         for(const course of requirements[group]){
+
+            //also finds the course with the highest course number in the selected major
+            //this is always the highest non-graduate course so it ensures major completion
+            const match = course.match(/\d+/);//digits in the course number
+            if (match) {
+                const num = parseInt(match[0], 10);//convert to number
+                if (num > biggestNum) {//record the number
+                    biggestNum = num;
+                    finalCourse = course;
+                }
+            }
             if(course === "MLNG 200" || course === "RELS 200"){
                 litStudiesCourse = course;
                 continue;
@@ -276,19 +281,22 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
         courses: new Set()
     };//creates the first semester chunk
 
+
+
     //HARDCODED COURSES FOR THOSE WITH NO TRANSCRIPT
     if(!transcript){
-        takenCourses.add("MATH 116");//this isnt on the official finish in four and i didnt ever take it but for some reason its technically required
+        takenCourses.set("MATH 116", "A");//this is a requirement for some courses that is also fulfilled by the higher entry maths like 117
         //so we're cheating that one
-        takenCourses.add("MATH 117");//hardcode math117, because its a prereq that is taken alongside things for people who couldn't automatically get into math 136
+        takenCourses.set("MATH 117", "A");//hardcode math117, because its a prereq that is taken alongside things for people who couldn't automatically get into math 136
+        //having to wait a semester for 117 when in reality they let you take this alongside things that require it threw things off
         entryMath = true;
         console.log(`MATH 117 added to semester ${semesterCount}`);
+        semesters[1].courses.add("MATH 117")//only add 117 because having it satisfies the Quantitive Reasoning in the same way 116 does
         
-        semesters[1].courses.add("MATH 117")
     }
 
-    while (semesterCount < 13){//this loop will be broken so 13 is just a failsafe
-        //used to be 10 but that broke summer and winter course generation
+    while (semesterCount < 17){//this loop will be broken so 17 is just a failsafe
+        //used to be 10 but that broke summer and winter course generation, which require 12 seasons for one and 16 for both
         
         
         while (semesters[semesterCount].courses.size < semesterCourses){//while a course can fit in the semester
@@ -308,6 +316,9 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
             systemsQueue = false;
             worldLanguage1Queue = false;
             worldLanguage2Queue = false; //must be before 60 credits, 2 parts
+            majorFinalQueue = false; //checks to ensure the major's last course is complete
+            
+
             if(semesterCount > 3){
                 juniorStatus = true;
             }
@@ -316,6 +327,7 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
             }
             console.log(currentSeason);
 
+            //the greedy algorithm that generates the plan
             for (const groupName in requirements) {//for every group in the major requirements
                 
                 if (!groupCount[groupName]) {
@@ -365,6 +377,9 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
                         if(colonnade["Natural & Physical Sciences"].has(course) && natPhysSci1 === true){
                             natPhysSci2Queue = true;
                             
+                        }if(course===finalCourse){//if this is the last course in the major
+                            majorFinalQueue = true;//all last courses have prereqs so the system is forced to hit those first
+                            //also they're generally at the end of the page so the parser is guaranteed to hit the prereqs first anyway
                         }
 
 
@@ -383,7 +398,7 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
                 
 
             }
-
+            //fits in all the colonnades as they become available
             if(await isAvailableCourse("ENG 100", currentSeason, takenCourses) && !entryEng && !entryEngQueue && semesters[semesterCount].courses.size < semesterCourses){
                 semesters[semesterCount].courses.add("ENG 100");
                 entryEngQueue = true;
@@ -513,12 +528,11 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
             }
 
             
-            if(currentSeason==="Summer" || currentSeason==="Winter"){
+            if(currentSeason==="Summer" || currentSeason==="Winter"){//no need to overload offseasons with general elects
                 break;
             }
             while(semesters[semesterCount].courses.size < semesterCourses){
-                //console.log(semesterCourses);
-                //console.log(semesters[semesterCount].size);
+  
                 semesters[semesterCount].courses.add(`GENERAL ELECTIVE ${genElectCount}`);
                 genElectCount++;
                 console.log(`GENERAL ELECTIVE added to semester ${semesterCount}`);
@@ -531,55 +545,53 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
         //console.log(takenCourses);
         for(const item of semesters[semesterCount].courses){//add the courses to the taken list so there isnt repeats and the prereqs are valid
             if(item === "WORLD LANGUAGE FIRST COURSE"){
-                takenCourses.add("SPAN 101");
+                takenCourses.set("SPAN 101", "A");
             }if(item === "WORLD LANGUAGE SECOND COURSE"){
-                takenCourses.add("SPAN 102");
+                takenCourses.set("SPAN 102", "A");
             }else{
-                takenCourses.add(item);
+                takenCourses.set(item, "A");
             }
             
             totalCredits = totalCredits + await getCreditHours(item);
             console.log(totalCredits);
-            //console.log(takenCourses);
-            //console.log("fr fr");
+            
         }
-        //console.log(takenCourses);
-        //console.log(semesters);
 
+        //compile the semester and tick all the relevant flags
         if(entryEngQueue === true){
-            //takenCourses.add("ENG 100");
+   
             entryEng = true;
         }
         if(writing300Queue === true){
-            //takenCourses.add(writing300Course);
+      
             writing300 = true;
         }
         if(entryCommQueue === true){
-            //takenCourses.add("COMM 145");
+       
             entryComm = true;
         }
         if(litStudiesQueue === true){
-            //takenCourses.add(litStudiesCourse);
+         
             litStudies = true;
         }
         if(entryHistQueue === true){
-            //takenCourses.add("HIST 102");
+            
             entryHist = true;
         }
         if(humanitiesQueue === true){
-            //takenCourses.add(humanitiesCourse);
+            
             humanities = true;
         }
         if(socialSciQueue === true){
-            //takenCourses.add(socialSciCourse);
+            
             socialSci = true;
         }
         if(natPhysSci1Queue === true){
-            //takenCourses.add(natPhysSci1Course);
+            
             natPhysSci1 = true;
         }
         if(natPhysSci2Queue === true){
-            //takenCourses.add(natPhysSci2Course);
+            
             natPhysSci2 = true;
         }
         if(cultConnQueue === true){
@@ -592,12 +604,15 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
             systems = true;
         }
         if(worldLanguage1Queue === true){
-            //takenCourses.add("SPAN 101");
+            
             worldLanguage1 = true;
         }
         if(worldLanguage2Queue === true){
-            //takenCourses.add("SPAN 102");
+            
             worldLanguage2 = true;
+        }
+        if(majorFinalQueue === true){
+            majorFinal = true;
         }
         semesterCount++;
         if(currentSeason === "Fall"){
@@ -617,10 +632,12 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
         }else if(currentSeason = "Summer"){
             currentSeason = "Fall";
         }
-
+        //breaks the loop if they are eligible to graduate
         if (entryMath && entryEng && writing300 && entryComm && litStudies && entryHist && humanities && socialSci 
-            && natPhysSci1 && natPhysSci2 && cultConn && localGlobal && systems && worldLanguage1 && worldLanguage2 && totalCredits > 119){
-
+            && natPhysSci1 && natPhysSci2 && cultConn && localGlobal && systems && worldLanguage1 && worldLanguage2 && majorFinal && totalCredits > 119){
+                
+                graduationElegible=true;
+                
                 break;
         }
         
@@ -643,7 +660,8 @@ async function fouryearplan(major, transcript, sixCourse, summer, winter) {
         ])
     ),
     totalCredits,
-    major
+    major,
+    graduationElegible
 };
 
 }
@@ -665,7 +683,7 @@ function getCourse(courseName) {//checks if a course is in the database
 function getPrereqRows(courseName) {
   return new Promise((resolve, reject) => {
     db.all(
-      `SELECT ReqCourse FROM CourseReqs WHERE Course = ?`,
+      `SELECT ReqCourse, GradeRequired FROM CourseReqs WHERE Course = ?`,
       [courseName],
       (err, rows) => {
         if (err) return reject(err);
@@ -675,17 +693,13 @@ function getPrereqRows(courseName) {
   });
 }
 
-//original version of this function
-//function satisfiesPrereqRow(reqString, takenCourses) {//checks to make sure the prereqs are taken already
-  //const options = reqString.split(" OR ").map(s => s.trim());//prereqs with OR share a row
-  //return options.some(course => takenCourses.has(course));
-//}
 
 
-function satisfiesPrereqRow(reqString, takenCourses) {//checks to make sure the prereqs are taken already
+
+function satisfiesPrereqRow(reqString, requiredGrade, takenCourses) {//checks to make sure the prereqs are taken already
   let options = reqString.split(" OR ").map(s => s.trim());//prereqs with OR share a row
 
-  const csCount = [...takenCourses].filter(c => c.includes("CS")).length;//checks if lots of CS courses are taken
+  const csCount = [...takenCourses.keys()].filter(c => c.includes("CS")).length;//checks if lots of CS courses are taken
 
   if (csCount > 3) {//ignores EE 380 if student is CS because of silly edge case with one of galloway's courses
     options = options.filter(course => course !== "EE 380");
@@ -694,26 +708,40 @@ function satisfiesPrereqRow(reqString, takenCourses) {//checks to make sure the 
   if (options.length === 0) {
     return true;
   }
-  
+
+  const gradeToNumber = new Map([
+    ["A", 5],
+    ["B", 4],
+    ["C", 3],
+    ["D", 2],
+    ["F", 1]
+  ]);
+  const requiredValue = gradeToNumber.get(requiredGrade) ?? 0;
 
   if (options.includes("ENG 307") && !options.includes("ENG 300")) {//another edgecase on galloway's course requirements
     options.push("ENG 300");//it requires a writing 300 course or a technical writing course but is written in a way that tricks my parser
     
   }
+  
+  return options.some(course => {//checks if the grade of any matching course is correct before returning
+    if (!takenCourses.has(course)) return false;
 
-  return options.some(course => takenCourses.has(course));
+    const takenGrade = takenCourses.get(course);
+    const takenValue = gradeToNumber.get(takenGrade) ?? 0;
+
+    return takenValue >= requiredValue;
+  });
 }
 
 async function isAvailableCourse(courseName, season, takenCourses) {//returns true if the course is possible to take in the current semester
-  
-  
-  //console.log(`isAvailable has been called on ${courseName}`);
   const course = await getCourse(courseName);//checks if the course exists, fetches its info
+  console.log(courseName);
   if (!course){
     //console.log("course doesnt exist");
  
     return false;
   } 
+
   const juniorCourses = new Set(["ART 432", "CSJ 499", "PSY 331", "PSY 350","PSY 363","PSY 481", "PSY 499", "PSYS 499", "PSY 352", "PSY 353",
     "PSY 357", "PSY 370", "PSY 440", "PSY 450","PSY 451","PSY 453","PSY 482","PSY 355","PSY 412","PSY 470"]);//junior-only
   //senior-only
@@ -748,15 +776,14 @@ async function isAvailableCourse(courseName, season, takenCourses) {//returns tr
 
   if (prereqRows.length === 0){
     return true;
-  } //if there are no prerequisites
+  } //if there are no prerequisite rows
 
   for (const row of prereqRows) {//checks that all relevant rows pass the prereqs
-    
 
     if(courseName === row.ReqCourse){//ENG 100 has itself as a prereq for some reason
         return true;
     }
-    const ok = satisfiesPrereqRow(row.ReqCourse, takenCourses);
+    const ok = satisfiesPrereqRow(row.ReqCourse, row.GradeRequired, takenCourses);
     
     if (!ok) {
         
@@ -791,7 +818,7 @@ function getRequirements(major) {
 
             const lastChar = group.slice(-1);
             requirements[group].add(lastChar);//takes the last character and adds it too
-          }
+          }//this is sort of like metadata that i coded into the groups so the plan could know how many electives of the group to take
 
           requirements[group].add(row.course);
         }
@@ -830,7 +857,7 @@ function getColonnade() {
   });
 }
 
-function getTranscriptCourses() {
+function getTranscriptCourses() {//updated this to be a map so grade data is retained
   return new Promise((resolve, reject) => {
     db.all(
       `SELECT CourseNum, Grade
@@ -838,21 +865,17 @@ function getTranscriptCourses() {
       (err, rows) => {
         if (err) return reject(err);
 
-        const transcriptCourses = new Set();
+        const transcriptCourses = new Map();
 
         for (const row of rows) {
           if (!row.CourseNum || !row.Grade) continue;
 
-          //skip failed courses
-          if (row.Grade === "W" || row.Grade === "F") continue;
-
           //format ENG100 to ENG 100
           const cleaned = row.CourseNum.replace(/([A-Za-z]+)(\d+)/, "$1 $2");
 
-          transcriptCourses.add(cleaned);
-          
+          transcriptCourses.set(cleaned, row.Grade);
         }
-        //console.log(transcriptCourses);
+
         resolve(transcriptCourses);
       }
     );
@@ -884,7 +907,7 @@ function getTranscriptData() {
 function isNumber(str) {//checks if a string is a number
   return typeof str === 'string' && /^-?\d+(\.\d+)?$/.test(str.trim());
 }
-function fixLimit(limit) {
+function fixLimit(limit) {//if a group has no limit it is read as X, which isnt a number so this converts into infinity
     return limit === "X" ? Infinity : Number(limit);
 }
 
@@ -894,6 +917,7 @@ function getCreditHours(course) {
       `SELECT CreditHours 
        FROM Courses 
        WHERE CourseNum = ?`,
+       [course],
       (err, rows) => {
         if (err) return resolve(3);
 

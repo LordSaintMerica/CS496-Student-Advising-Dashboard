@@ -1,8 +1,9 @@
 //CS496 DATABASE FUNCTIONS
 //WRITTEN BY FREDDY GOODWIN
-//not really necessary i just separated this from the main because the parser used it too
-//and also made it so the database is instantiated here
-//other handy stuff to export will go here in the future if necessary
+//i separated this from the main server so there'd be a singleton instance of the SQLite
+//rather than having many open sessions of the SQLite
+//took the opportunity to also put the requirement scraper's overwrite deleing function here
+//and the transcript's clearing function
 
 //requirement imports
 const sqlite3 = require("sqlite3").verbose();

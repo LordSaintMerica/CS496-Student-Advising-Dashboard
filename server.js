@@ -332,7 +332,7 @@ app.get("/api/fouryearplan", (req, res) => {
 
 app.use(express.json());
 
-app.post("/api/generate-plan", async (req, res) => {
+app.post("/api/generate-plan", async (req, res) => {//calls fouryearplan
     try {
         const { sixCourse, winter, summer } = req.body;
 
